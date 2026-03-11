@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aventura – Tria l'inici</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="seleccio-page">
+    <div class="seleccio-container">
+        <h1 class="seleccio-titol">⚔️ Aventura</h1>
+        <p class="seleccio-subtitol">On vols començar?</p>
+        <div class="localitzacions-grid">
+            {% for loc in localitzacions %}
+            <a href="/juga/{{ loc.id }}" class="loc-btn">
+                {{ loc.nom }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

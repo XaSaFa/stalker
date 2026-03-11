@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ localitzacio.nom }} – Aventura</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="juga-page">
+
+    <div class="juga-layout">
+
+        <!-- CONTINGUT PRINCIPAL -->
+        <main class="juga-main">
+
+            <h1 class="localitzacio-nom">{{ localitzacio.nom }}</h1>
+
+            {% if localitzacio.imatge %}
+            <div class="imatge-contenidor">
+                <img src="{{ localitzacio.imatge }}" alt="{{ localitzacio.nom }}" class="localitzacio-imatge">
+            </div>
+            {% else %}
+            <div class="imatge-contenidor imatge-buida">
+                <span>Sense imatge</span>
+            </div>
+            {% endif %}
+
+            <div class="descripcio-box">
+                {{ localitzacio.descripcio or 'Sense descripció.' }}
+            </div>
+
+        </main>
+
+        <!-- PANELL DE SORTIDES -->
+        <aside class="sortides-panel">
+            <h2 class="sortides-titol">Sortides</h2>
+
+            {% if sortides %}
+                {% for cami in sortides %}
+                <a href="/juga/{{ cami.desti_id }}" class="sortida-btn">
+                    {{ cami.nom }}
+                </a>
+                {% endfor %}
+            {% else %}
+            <p class="sense-sortides">No hi ha sortides disponibles.</p>
+            {% endif %}
+
+            <div class="sortides-footer">
+                <a href="/" class="tornar-btn">↩ Tornar a l'inici</a>
+            </div>
+        </aside>
+
+    </div>
+
+</body>
+</html>
