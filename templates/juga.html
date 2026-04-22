@@ -330,39 +330,35 @@ function llencarObjecte(id) {
 //  UTILITZAR — selecció de target
 // =============================================
 
-let objecteEnUs = null; // { id, nom, origen: 'sala'|'inventari' }
-let esperantTarget = false;
-
 function iniciarUs(objecteId, objecteNom, origen, camiIdDirecte = null) {
-    // Si cliquem "Utilitzar" des d'un camí directament
     if (origen === 'cami' && camiIdDirecte !== null) {
         mostrarPopupUsar(null, null, camiIdDirecte);
         return;
     }
-    objecteEnUs = { id: objecteId, nom: objecteNom, origen };
     mostrarPopupUsar(objecteId, objecteNom, null);
 }
 
 function mostrarPopupUsar(objecteId, objecteNom, camiIdPreseleccionat) {
+    // objecteId i objecteNom es capturen per valor en cada closure — no hi ha variable global
     const opcions = document.getElementById('popup-usar-opcions');
     opcions.innerHTML = '';
 
-    const titol = document.getElementById('popup-usar-titol');
-    titol.textContent = objecteNom ? `Usar "${objecteNom}" amb...` : 'Usar objecte amb...';
+    document.getElementById('popup-usar-titol').textContent =
+        objecteNom ? `Usar "${objecteNom}" amb...` : 'Usar objecte amb...';
 
-    // Secció: objectes de la sala (decorat, no agafables visibles)
-    const objectesSala = Array.from(document.querySelectorAll('.objecte-sala')).filter(el => el.style.display !== 'none');
-    if (objectesSala.length > 0) {
+    // Secció: objectes de la sala
+    const objectesSala = Array.from(document.querySelectorAll('.objecte-sala'))
+        .filter(el => el.style.display !== 'none');
+    if (objectesSala.length > 0 && objecteId !== null) {
         opcions.innerHTML += '<div class="usar-seccio">🎭 Objectes de la sala</div>';
         objectesSala.forEach(el => {
+            const targetId = parseInt(el.dataset.id);
             const btn = document.createElement('button');
             btn.className = 'usar-opcio-btn';
             btn.textContent = el.dataset.nom;
             btn.onclick = () => {
                 tancarPopupUsar();
-                if (objecteEnUs) {
-                    executarInteraccio(objecteEnUs.id, 'objecte', parseInt(el.dataset.id));
-                }
+                executarInteraccio(objecteId, 'objecte', targetId);
             };
             opcions.appendChild(btn);
         });
@@ -373,35 +369,36 @@ function mostrarPopupUsar(objecteId, objecteNom, camiIdPreseleccionat) {
     if (caminsTancats.length > 0) {
         opcions.innerHTML += '<div class="usar-seccio">🔒 Camins tancats</div>';
         caminsTancats.forEach(el => {
+            const camiId = parseInt(el.dataset.camiId);
             const btn = document.createElement('button');
             btn.className = 'usar-opcio-btn';
             btn.textContent = el.textContent.trim();
-            const camiId = parseInt(el.dataset.camiId);
             if (camiIdPreseleccionat !== null) {
-                // Mode: clic des del camí, seleccionar objecte de l'inventari
+                // Mode: clic des del camí → seleccionar objecte de l'inventari
                 btn.onclick = () => { tancarPopupUsar(); seleccionarObjectePerCami(camiId); };
             } else {
                 btn.onclick = () => {
                     tancarPopupUsar();
-                    if (objecteEnUs) executarInteraccio(objecteEnUs.id, 'cami', camiId);
+                    executarInteraccio(objecteId, 'cami', camiId);
                 };
             }
             opcions.appendChild(btn);
         });
     }
 
-    // Secció: objectes de l'inventari (per combinar)
+    // Secció: combinar amb objecte de l'inventari
     const inv = getInventari();
-    const invFiltrat = objecteEnUs ? inv.filter(o => o.id !== objecteEnUs.id) : inv;
-    if (invFiltrat.length > 0) {
+    const invFiltrat = objecteId !== null ? inv.filter(o => o.id !== objecteId) : inv;
+    if (invFiltrat.length > 0 && objecteId !== null) {
         opcions.innerHTML += '<div class="usar-seccio">🎒 Combinar amb objecte de l\'inventari</div>';
         invFiltrat.forEach(obj => {
+            const objBId = obj.id;
             const btn = document.createElement('button');
             btn.className = 'usar-opcio-btn';
             btn.textContent = obj.nom;
             btn.onclick = () => {
                 tancarPopupUsar();
-                if (objecteEnUs) executarCombinacio(objecteEnUs.id, obj.id);
+                executarCombinacio(objecteId, objBId);
             };
             opcions.appendChild(btn);
         });
@@ -415,7 +412,6 @@ function mostrarPopupUsar(objecteId, objecteNom, camiIdPreseleccionat) {
 }
 
 function seleccionarObjectePerCami(camiId) {
-    // Obre un popup per seleccionar quin objecte de l'inventari usar al camí
     const inv = getInventari();
     if (inv.length === 0) { mostrarMissatge('No tens cap objecte a l\'inventari.'); return; }
 
@@ -424,13 +420,13 @@ function seleccionarObjectePerCami(camiId) {
     document.getElementById('popup-usar-titol').textContent = 'Usar objecte al camí...';
 
     inv.forEach(obj => {
+        const objId = obj.id;
         const btn = document.createElement('button');
         btn.className = 'usar-opcio-btn';
         btn.textContent = obj.nom;
         btn.onclick = () => {
             tancarPopupUsar();
-            objecteEnUs = { id: obj.id, nom: obj.nom, origen: 'inventari' };
-            executarInteraccio(obj.id, 'cami', camiId);
+            executarInteraccio(objId, 'cami', camiId);
         };
         opcions.appendChild(btn);
     });
@@ -440,7 +436,6 @@ function seleccionarObjectePerCami(camiId) {
 
 function tancarPopupUsar() {
     document.getElementById('popup-usar-overlay').style.display = 'none';
-    objecteEnUs = null;
 }
 
 // =============================================
@@ -458,7 +453,7 @@ async function executarInteraccio(objecteId, targetTipus, targetId) {
         }
 
         // Consumir objecte si cal
-        if (data.consumeix && objecteEnUs) {
+        if (data.consumeix) {
             const inv = getInventari();
             const obj = inv.find(o => o.id === objecteId);
             if (obj) {
