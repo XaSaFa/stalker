@@ -8,49 +8,556 @@
 </head>
 <body class="juga-page">
 
-    <div class="juga-layout">
+<script>
+const OBJECTES_SALA = {{ objectes | tojson }};
+const SALA_ID = {{ localitzacio.id }};
+</script>
 
-        <!-- CONTINGUT PRINCIPAL -->
-        <main class="juga-main">
+<div class="juga-layout">
 
-            <h1 class="localitzacio-nom">{{ localitzacio.nom }}</h1>
+    <!-- CONTINGUT PRINCIPAL -->
+    <main class="juga-main">
 
-            {% if localitzacio.imatge %}
-            <div class="imatge-contenidor">
-                <img src="{{ localitzacio.imatge }}" alt="{{ localitzacio.nom }}" class="localitzacio-imatge">
+        <h1 class="localitzacio-nom">{{ localitzacio.nom }}</h1>
+
+        {% if localitzacio.imatge %}
+        <div class="imatge-contenidor" id="imatge-contenidor">
+            <img src="{{ localitzacio.imatge }}"
+                 alt="{{ localitzacio.nom }}"
+                 class="localitzacio-imatge"
+                 id="imatge-sala"
+                 onload="ajustarObjectes()">
+
+            {% for obj in objectes %}
+            <div class="objecte-sala"
+                 id="obj-{{ obj.id }}"
+                 style="left:{{ obj.pos_x }}%; top:{{ obj.pos_y }}%;"
+                 data-id="{{ obj.id }}"
+                 data-nom="{{ obj.nom }}"
+                 data-descripcio="{{ obj.descripcio or '' }}"
+                 data-agafable="{{ 'true' if obj.agafable else 'false' }}"
+                 data-usos="{{ obj.usos }}"
+                 data-imatge="{{ obj.imatge or '' }}"
+                 data-mida="{{ obj.mida }}"
+                 onclick="obrirMenuObjecteSala(event, this)">
+                {% if obj.imatge %}
+                <img src="{{ obj.imatge }}" alt="{{ obj.nom }}"
+                     class="objecte-img" style="width:{{ obj.mida }}%;">
+                {% else %}
+                <div class="objecte-placeholder">{{ obj.nom[:2] }}</div>
+                {% endif %}
+                <span class="objecte-tooltip">{{ obj.nom }}</span>
             </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="imatge-contenidor imatge-buida">
+            <span>Sense imatge</span>
+        </div>
+        {% endif %}
+
+        <div class="descripcio-box">
+            {{ localitzacio.descripcio or 'Sense descripció.' }}
+        </div>
+
+    </main>
+
+    <!-- PANELL DE SORTIDES -->
+    <aside class="sortides-panel">
+        <h2 class="sortides-titol">Sortides</h2>
+
+        {% if sortides %}
+            {% for cami in sortides %}
+            {% if cami.tancat %}
+            <button class="sortida-btn sortida-tancada"
+                    id="cami-{{ cami.id }}"
+                    data-cami-id="{{ cami.id }}"
+                    data-desti-id="{{ cami.desti_id }}"
+                    onclick="obrirMenuCami(event, this)">
+                🔒 {{ cami.nom }}
+            </button>
             {% else %}
-            <div class="imatge-contenidor imatge-buida">
-                <span>Sense imatge</span>
-            </div>
+            <a href="/juga/{{ cami.desti_id }}"
+               class="sortida-btn"
+               id="cami-{{ cami.id }}"
+               data-cami-id="{{ cami.id }}"
+               data-desti-id="{{ cami.desti_id }}">
+                {{ cami.nom }}
+            </a>
             {% endif %}
+            {% endfor %}
+        {% else %}
+        <p class="sense-sortides">No hi ha sortides disponibles.</p>
+        {% endif %}
 
-            <div class="descripcio-box">
-                {{ localitzacio.descripcio or 'Sense descripció.' }}
-            </div>
+        <div class="sortides-footer">
+            <a href="/" class="tornar-btn">↩ Tornar a l'inici</a>
+        </div>
+    </aside>
 
-        </main>
+</div>
 
-        <!-- PANELL DE SORTIDES -->
-        <aside class="sortides-panel">
-            <h2 class="sortides-titol">Sortides</h2>
-
-            {% if sortides %}
-                {% for cami in sortides %}
-                <a href="/juga/{{ cami.desti_id }}" class="sortida-btn">
-                    {{ cami.nom }}
-                </a>
-                {% endfor %}
-            {% else %}
-            <p class="sense-sortides">No hi ha sortides disponibles.</p>
-            {% endif %}
-
-            <div class="sortides-footer">
-                <a href="/" class="tornar-btn">↩ Tornar a l'inici</a>
-            </div>
-        </aside>
-
+<!-- BARRA D'INVENTARI -->
+<div class="inventari-bar" id="inventari-bar">
+    <div class="inventari-titol">🎒 Inventari</div>
+    <div class="inventari-items" id="inventari-items">
+        <span class="inventari-buit" id="inventari-buit">Buit</span>
     </div>
+</div>
+
+<!-- MENÚ CONTEXTUAL -->
+<div class="menu-contextual" id="menu-contextual">
+    <div class="menu-nom" id="menu-nom"></div>
+    <div class="menu-descripcio" id="menu-descripcio"></div>
+    <div class="menu-accions" id="menu-accions"></div>
+</div>
+
+<!-- POPUP GENÈRIC (examinar / missatge) -->
+<div class="popup-overlay" id="popup-overlay" onclick="tancarPopup()">
+    <div class="popup-box" onclick="event.stopPropagation()">
+        <img id="popup-imatge" src="" alt="" style="display:none;">
+        <p id="popup-text"></p>
+        <button onclick="tancarPopup()" class="popup-btn">D'acord</button>
+    </div>
+</div>
+
+<!-- POPUP USAR: seleccionar target -->
+<div class="popup-overlay" id="popup-usar-overlay" onclick="tancarPopupUsar()">
+    <div class="popup-box popup-usar" onclick="event.stopPropagation()">
+        <h3 id="popup-usar-titol">Usar amb...</h3>
+        <p class="popup-usar-sub">Selecciona l'element amb el qual vols usar l'objecte:</p>
+        <div id="popup-usar-opcions"></div>
+        <button onclick="tancarPopupUsar()" class="popup-btn popup-btn-cancel">Cancel·lar</button>
+    </div>
+</div>
+
+<script>
+// =============================================
+//  INVENTARI (sessionStorage)
+// =============================================
+
+function getInventari() {
+    try { return JSON.parse(sessionStorage.getItem('inventari') || '[]'); }
+    catch { return []; }
+}
+function setInventari(inv) {
+    sessionStorage.setItem('inventari', JSON.stringify(inv));
+}
+function afegirAInventari(obj) {
+    const inv = getInventari();
+    if (inv.find(o => o.id === obj.id)) return;
+    inv.push(obj);
+    setInventari(inv);
+    renderInventari();
+}
+function eliminarDeInventari(id) {
+    setInventari(getInventari().filter(o => o.id !== id));
+    renderInventari();
+}
+function actualitzarUsos(id, noususos) {
+    const inv = getInventari();
+    const obj = inv.find(o => o.id === id);
+    if (obj) { obj.usos = noususos; setInventari(inv); }
+}
+
+function renderInventari() {
+    const inv = getInventari();
+    const container = document.getElementById('inventari-items');
+    const buit = document.getElementById('inventari-buit');
+    if (buit) buit.style.display = inv.length === 0 ? 'inline' : 'none';
+
+    // Elimina items anteriors (no el span buit)
+    container.querySelectorAll('.inv-item').forEach(el => el.remove());
+
+    inv.forEach(obj => {
+        const div = document.createElement('div');
+        div.className = 'inv-item';
+        div.dataset.id         = obj.id;
+        div.dataset.nom        = obj.nom;
+        div.dataset.descripcio = obj.descripcio || '';
+        div.dataset.imatge     = obj.imatge || '';
+        div.dataset.usos       = obj.usos;
+        div.onclick = (e) => obrirMenuInventari(e, div);
+        div.innerHTML = obj.imatge
+            ? `<img src="${obj.imatge}" alt="${obj.nom}" class="inv-img">`
+            : `<div class="inv-placeholder">${obj.nom.substring(0,2)}</div>`;
+        div.innerHTML += `<span class="inv-nom">${obj.nom}</span>`;
+        container.appendChild(div);
+    });
+}
+
+// =============================================
+//  MIDA OBJECTES (% relatiu a l'amplada imatge)
+// =============================================
+
+function ajustarObjectes() {
+    const img = document.getElementById('imatge-sala');
+    if (!img) return;
+    const ample = img.offsetWidth;
+    document.querySelectorAll('.objecte-img').forEach(el => {
+        const mida = parseFloat(el.closest('.objecte-sala').dataset.mida) || 100;
+        el.style.width  = (ample * mida / 100) + 'px';
+        el.style.height = 'auto';
+    });
+}
+window.addEventListener('resize', ajustarObjectes);
+
+// =============================================
+//  MENÚ CONTEXTUAL
+// =============================================
+
+function obrirMenu(event, nom, descripcio, accions) {
+    event.stopPropagation();
+    tancarMenuContextual();
+    document.getElementById('menu-nom').textContent = nom;
+    document.getElementById('menu-descripcio').textContent = descripcio || '';
+
+    const container = document.getElementById('menu-accions');
+    container.innerHTML = '';
+    accions.forEach(({label, cls, fn}) => {
+        const btn = document.createElement('button');
+        btn.className = 'menu-btn ' + (cls || '');
+        btn.textContent = label;
+        btn.onclick = (e) => { e.stopPropagation(); fn(); tancarMenuContextual(); };
+        container.appendChild(btn);
+    });
+
+    const menu = document.getElementById('menu-contextual');
+    menu.style.display = 'block';
+    posicionarMenu(menu, event.clientX, event.clientY);
+}
+
+function posicionarMenu(menu, x, y) {
+    menu.style.left = (x + 10) + 'px';
+    menu.style.top  = (y + 10) + 'px';
+    const r = menu.getBoundingClientRect();
+    if (r.right  > window.innerWidth  - 10) menu.style.left = (x - r.width  - 10) + 'px';
+    if (r.bottom > window.innerHeight - 10) menu.style.top  = (y - r.height - 10) + 'px';
+}
+
+function tancarMenuContextual() {
+    document.getElementById('menu-contextual').style.display = 'none';
+}
+document.addEventListener('click', tancarMenuContextual);
+
+// --- Menú objecte de la sala ---
+function obrirMenuObjecteSala(event, el) {
+    const agafable = el.dataset.agafable === 'true';
+    const inv = getInventari();
+    const jaAgafat = !!inv.find(o => o.id == el.dataset.id);
+    const accions = [];
+
+    accions.push({ label: '🔍 Examinar', fn: () => examinar(el.dataset.nom, el.dataset.descripcio, el.dataset.imatge) });
+
+    if (agafable && !jaAgafat) {
+        accions.push({ label: '✋ Agafar', cls: 'menu-btn-agafar', fn: () => agafarObjecte(el) });
+    }
+
+    accions.push({ label: '⚡ Utilitzar', cls: 'menu-btn-usar', fn: () => iniciarUs(parseInt(el.dataset.id), el.dataset.nom, 'sala') });
+
+    obrirMenu(event, el.dataset.nom, el.dataset.descripcio, accions);
+}
+
+// --- Menú camí tancat ---
+function obrirMenuCami(event, el) {
+    event.preventDefault();
+    event.stopPropagation();
+    const accions = [
+        { label: '⚡ Utilitzar objecte', cls: 'menu-btn-usar', fn: () => iniciarUs(null, null, 'cami', parseInt(el.dataset.camiId)) }
+    ];
+    obrirMenu(event, '🔒 ' + el.textContent.trim(), 'Camí tancat. Potser un objecte el pot obrir.', accions);
+}
+
+// --- Menú objecte inventari ---
+function obrirMenuInventari(event, el) {
+    const accions = [
+        { label: '🔍 Examinar', fn: () => examinar(el.dataset.nom, el.dataset.descripcio, el.dataset.imatge) },
+        { label: '⚡ Utilitzar', cls: 'menu-btn-usar', fn: () => iniciarUs(parseInt(el.dataset.id), el.dataset.nom, 'inventari') },
+        { label: '🗑️ Llençar', cls: 'menu-btn-danger', fn: () => llencarObjecte(parseInt(el.dataset.id)) },
+    ];
+    obrirMenu(event, el.dataset.nom, el.dataset.descripcio, accions);
+}
+
+// =============================================
+//  EXAMINAR
+// =============================================
+
+function examinar(nom, descripcio, imatge) {
+    const img = document.getElementById('popup-imatge');
+    if (imatge) {
+        img.src = imatge;
+        img.alt = nom;
+        img.style.display = 'block';
+    } else {
+        img.style.display = 'none';
+    }
+    document.getElementById('popup-text').textContent = descripcio || 'No hi ha res especial.';
+    document.getElementById('popup-overlay').style.display = 'flex';
+}
+
+function tancarPopup() {
+    document.getElementById('popup-overlay').style.display = 'none';
+}
+
+// =============================================
+//  AGAFAR OBJECTE
+// =============================================
+
+function agafarObjecte(el) {
+    const obj = {
+        id:         parseInt(el.dataset.id),
+        nom:        el.dataset.nom,
+        descripcio: el.dataset.descripcio,
+        imatge:     el.dataset.imatge,
+        usos:       parseInt(el.dataset.usos),
+    };
+    afegirAInventari(obj);
+    el.classList.add('objecte-agafat');
+    setTimeout(() => el.remove(), 400);
+    mostrarMissatge(`Has agafat: ${obj.nom}`);
+}
+
+// =============================================
+//  LLENÇAR OBJECTE
+// =============================================
+
+function llencarObjecte(id) {
+    eliminarDeInventari(id);
+    mostrarMissatge('Has llençat l\'objecte.');
+}
+
+// =============================================
+//  UTILITZAR — selecció de target
+// =============================================
+
+let objecteEnUs = null; // { id, nom, origen: 'sala'|'inventari' }
+let esperantTarget = false;
+
+function iniciarUs(objecteId, objecteNom, origen, camiIdDirecte = null) {
+    // Si cliquem "Utilitzar" des d'un camí directament
+    if (origen === 'cami' && camiIdDirecte !== null) {
+        mostrarPopupUsar(null, null, camiIdDirecte);
+        return;
+    }
+    objecteEnUs = { id: objecteId, nom: objecteNom, origen };
+    mostrarPopupUsar(objecteId, objecteNom, null);
+}
+
+function mostrarPopupUsar(objecteId, objecteNom, camiIdPreseleccionat) {
+    const opcions = document.getElementById('popup-usar-opcions');
+    opcions.innerHTML = '';
+
+    const titol = document.getElementById('popup-usar-titol');
+    titol.textContent = objecteNom ? `Usar "${objecteNom}" amb...` : 'Usar objecte amb...';
+
+    // Secció: objectes de la sala (decorat, no agafables visibles)
+    const objectesSala = Array.from(document.querySelectorAll('.objecte-sala')).filter(el => el.style.display !== 'none');
+    if (objectesSala.length > 0) {
+        opcions.innerHTML += '<div class="usar-seccio">🎭 Objectes de la sala</div>';
+        objectesSala.forEach(el => {
+            const btn = document.createElement('button');
+            btn.className = 'usar-opcio-btn';
+            btn.textContent = el.dataset.nom;
+            btn.onclick = () => {
+                tancarPopupUsar();
+                if (objecteEnUs) {
+                    executarInteraccio(objecteEnUs.id, 'objecte', parseInt(el.dataset.id));
+                }
+            };
+            opcions.appendChild(btn);
+        });
+    }
+
+    // Secció: camins tancats
+    const caminsTancats = Array.from(document.querySelectorAll('.sortida-tancada'));
+    if (caminsTancats.length > 0) {
+        opcions.innerHTML += '<div class="usar-seccio">🔒 Camins tancats</div>';
+        caminsTancats.forEach(el => {
+            const btn = document.createElement('button');
+            btn.className = 'usar-opcio-btn';
+            btn.textContent = el.textContent.trim();
+            const camiId = parseInt(el.dataset.camiId);
+            if (camiIdPreseleccionat !== null) {
+                // Mode: clic des del camí, seleccionar objecte de l'inventari
+                btn.onclick = () => { tancarPopupUsar(); seleccionarObjectePerCami(camiId); };
+            } else {
+                btn.onclick = () => {
+                    tancarPopupUsar();
+                    if (objecteEnUs) executarInteraccio(objecteEnUs.id, 'cami', camiId);
+                };
+            }
+            opcions.appendChild(btn);
+        });
+    }
+
+    // Secció: objectes de l'inventari (per combinar)
+    const inv = getInventari();
+    const invFiltrat = objecteEnUs ? inv.filter(o => o.id !== objecteEnUs.id) : inv;
+    if (invFiltrat.length > 0) {
+        opcions.innerHTML += '<div class="usar-seccio">🎒 Combinar amb objecte de l\'inventari</div>';
+        invFiltrat.forEach(obj => {
+            const btn = document.createElement('button');
+            btn.className = 'usar-opcio-btn';
+            btn.textContent = obj.nom;
+            btn.onclick = () => {
+                tancarPopupUsar();
+                if (objecteEnUs) executarCombinacio(objecteEnUs.id, obj.id);
+            };
+            opcions.appendChild(btn);
+        });
+    }
+
+    if (opcions.innerHTML === '') {
+        opcions.innerHTML = '<p style="color:#7a6040; font-style:italic; padding:0.5rem 0;">No hi ha res amb què usar-lo aquí.</p>';
+    }
+
+    document.getElementById('popup-usar-overlay').style.display = 'flex';
+}
+
+function seleccionarObjectePerCami(camiId) {
+    // Obre un popup per seleccionar quin objecte de l'inventari usar al camí
+    const inv = getInventari();
+    if (inv.length === 0) { mostrarMissatge('No tens cap objecte a l\'inventari.'); return; }
+
+    const opcions = document.getElementById('popup-usar-opcions');
+    opcions.innerHTML = '<div class="usar-seccio">🎒 Selecciona un objecte de l\'inventari</div>';
+    document.getElementById('popup-usar-titol').textContent = 'Usar objecte al camí...';
+
+    inv.forEach(obj => {
+        const btn = document.createElement('button');
+        btn.className = 'usar-opcio-btn';
+        btn.textContent = obj.nom;
+        btn.onclick = () => {
+            tancarPopupUsar();
+            objecteEnUs = { id: obj.id, nom: obj.nom, origen: 'inventari' };
+            executarInteraccio(obj.id, 'cami', camiId);
+        };
+        opcions.appendChild(btn);
+    });
+
+    document.getElementById('popup-usar-overlay').style.display = 'flex';
+}
+
+function tancarPopupUsar() {
+    document.getElementById('popup-usar-overlay').style.display = 'none';
+    objecteEnUs = null;
+}
+
+// =============================================
+//  EXECUTAR INTERACCIÓ (API)
+// =============================================
+
+async function executarInteraccio(objecteId, targetTipus, targetId) {
+    try {
+        const resp = await fetch(`/api/interaccio?objecte_id=${objecteId}&target_tipus=${targetTipus}&target_id=${targetId}`);
+        const data = await resp.json();
+
+        if (!data.ok) {
+            mostrarMissatge(data.missatge || 'No passa res especial.');
+            return;
+        }
+
+        // Consumir objecte si cal
+        if (data.consumeix && objecteEnUs) {
+            const inv = getInventari();
+            const obj = inv.find(o => o.id === objecteId);
+            if (obj) {
+                if (obj.usos === 1) {
+                    eliminarDeInventari(objecteId);
+                } else if (obj.usos > 1) {
+                    actualitzarUsos(objecteId, obj.usos - 1);
+                    renderInventari();
+                }
+                // usos === -1 = il·limitats, no es consumeix
+            }
+        }
+
+        // Resultat
+        if (data.resultat_tipus === 'obrir_cami') {
+            obrirCamiUI(targetId);
+            mostrarMissatge(data.missatge || 'El camí s\'ha obert!');
+        } else if (data.resultat_tipus === 'crear_objecte' && data.objecte_nou) {
+            afegirAInventari(data.objecte_nou);
+            mostrarMissatge(data.missatge || `Has obtingut: ${data.objecte_nou.nom}`);
+        } else if (data.resultat_tipus === 'missatge') {
+            mostrarMissatge(data.missatge || 'Res no passa.');
+        }
+
+    } catch (err) {
+        mostrarMissatge('Error de connexió.');
+    }
+}
+
+async function executarCombinacio(objecteAId, objecteBId) {
+    try {
+        const resp = await fetch(`/api/combinacio?objecte_a=${objecteAId}&objecte_b=${objecteBId}`);
+        const data = await resp.json();
+
+        if (!data.ok) {
+            mostrarMissatge(data.missatge || 'Aquests objectes no es poden combinar.');
+            return;
+        }
+
+        // Eliminar els dos objectes originals
+        eliminarDeInventari(objecteAId);
+        eliminarDeInventari(objecteBId);
+
+        // Afegir el resultat
+        afegirAInventari(data.objecte_nou);
+        mostrarMissatge(`Has combinat els objectes i has obtingut: ${data.objecte_nou.nom}`);
+
+    } catch (err) {
+        mostrarMissatge('Error de connexió.');
+    }
+}
+
+// =============================================
+//  OBRIR CAMÍ A LA UI (sense reload)
+// =============================================
+
+function obrirCamiUI(camiId) {
+    const btn = document.getElementById('cami-' + camiId);
+    if (!btn) return;
+    const destiId = btn.dataset.destiId;
+    const nomNet = btn.textContent.replace('🔒', '').trim();
+
+    // Substituir el botó tancat per un enllaç obert
+    const link = document.createElement('a');
+    link.href = '/juga/' + destiId;
+    link.className = 'sortida-btn';
+    link.id = 'cami-' + camiId;
+    link.dataset.camiId  = camiId;
+    link.dataset.destiId = destiId;
+    link.textContent = nomNet;
+    btn.replaceWith(link);
+}
+
+// =============================================
+//  MISSATGE POPUP
+// =============================================
+
+function mostrarMissatge(text) {
+    document.getElementById('popup-imatge').style.display = 'none';
+    document.getElementById('popup-text').textContent = text;
+    document.getElementById('popup-overlay').style.display = 'flex';
+}
+
+function tancarMissatge() { tancarPopup(); }
+
+// =============================================
+//  INIT
+// =============================================
+
+window.addEventListener('DOMContentLoaded', () => {
+    renderInventari();
+    // Ocultar objectes ja agafats
+    getInventari().forEach(obj => {
+        const el = document.getElementById('obj-' + obj.id);
+        if (el) el.remove();
+    });
+    ajustarObjectes();
+});
+</script>
 
 </body>
 </html>

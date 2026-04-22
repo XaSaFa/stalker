@@ -82,15 +82,14 @@ body {
 
 .juga-page {
     background: radial-gradient(ellipse at top left, #1e1508 0%, #0d0a04 100%);
+    padding-bottom: 90px;
 }
 
 .juga-layout {
     display: flex;
-    min-height: 100vh;
-    gap: 0;
+    min-height: calc(100vh - 90px);
 }
 
-/* --- Contingut principal --- */
 .juga-main {
     flex: 1;
     padding: 2rem 2.5rem;
@@ -110,6 +109,10 @@ body {
     width: 100%;
 }
 
+/* ============================
+   IMATGE + OBJECTES
+   ============================ */
+
 .imatge-contenidor {
     width: 100%;
     max-width: 700px;
@@ -118,6 +121,7 @@ body {
     overflow: hidden;
     background: #0d0a04;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    position: relative;
 }
 
 .localitzacio-imatge {
@@ -137,6 +141,73 @@ body {
     font-style: italic;
 }
 
+.objecte-sala {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.objecte-sala:hover {
+    transform: translate(-50%, -50%) scale(1.12);
+    filter: drop-shadow(0 0 8px rgba(240, 192, 64, 0.8));
+    z-index: 20;
+}
+
+.objecte-img {
+    display: block;
+    height: auto;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+    /* La mida s'assigna via JS per ser relativa a l'amplada de la imatge */
+}
+
+.objecte-placeholder {
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle, #6a4f20, #3a2808);
+    border: 2px solid #f0c040;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #f0c040;
+    text-transform: uppercase;
+}
+
+.objecte-tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 8, 2, 0.92);
+    color: #f0c040;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #4a3510;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.objecte-sala:hover .objecte-tooltip { opacity: 1; }
+
+@keyframes agafat-anim {
+    to { opacity: 0; transform: translate(-50%, -80%) scale(0.4); }
+}
+.objecte-agafat {
+    animation: agafat-anim 0.35s ease forwards;
+    pointer-events: none;
+}
+
+/* ============================
+   DESCRIPCIÓ
+   ============================ */
+
 .descripcio-box {
     width: 100%;
     max-width: 700px;
@@ -152,21 +223,14 @@ body {
     white-space: pre-line;
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
 }
+.descripcio-box::-webkit-scrollbar { width: 6px; }
+.descripcio-box::-webkit-scrollbar-track { background: #1a1209; }
+.descripcio-box::-webkit-scrollbar-thumb { background: #6a4f20; border-radius: 3px; }
 
-.descripcio-box::-webkit-scrollbar {
-    width: 6px;
-}
+/* ============================
+   PANELL SORTIDES
+   ============================ */
 
-.descripcio-box::-webkit-scrollbar-track {
-    background: #1a1209;
-}
-
-.descripcio-box::-webkit-scrollbar-thumb {
-    background: #6a4f20;
-    border-radius: 3px;
-}
-
-/* --- Panell de sortides --- */
 .sortides-panel {
     width: 240px;
     min-width: 200px;
@@ -202,6 +266,7 @@ body {
     transition: all 0.2s ease;
     cursor: pointer;
     line-height: 1.4;
+    width: 100%;
 }
 
 .sortida-btn:hover {
@@ -210,6 +275,19 @@ body {
     color: #fff8e0;
     transform: translateX(3px);
     box-shadow: 3px 0 12px rgba(208, 160, 48, 0.2);
+}
+
+.sortida-tancada {
+    color: #5a4828 !important;
+    border-color: #3a2808 !important;
+    background: linear-gradient(135deg, #1a1005, #120c03) !important;
+    cursor: pointer !important;
+    opacity: 0.75;
+}
+.sortida-tancada:hover {
+    border-color: #6a3a18 !important;
+    opacity: 1;
+    transform: translateX(2px) !important;
 }
 
 .sense-sortides {
@@ -235,7 +313,270 @@ body {
     text-align: center;
     transition: color 0.2s;
 }
+.tornar-btn:hover { color: #a09060; }
 
-.tornar-btn:hover {
-    color: #a09060;
+/* ============================
+   MENÚ CONTEXTUAL
+   ============================ */
+
+.menu-contextual {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    background: linear-gradient(160deg, #1e1508, #120c03);
+    border: 1px solid #6a4f20;
+    border-radius: 8px;
+    padding: 0.8rem;
+    min-width: 180px;
+    max-width: 260px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.7);
 }
+
+.menu-nom {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #f0c040;
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid #3a2808;
+    padding-bottom: 0.4rem;
+}
+
+.menu-descripcio {
+    font-size: 0.82rem;
+    color: #a09060;
+    margin-bottom: 0.7rem;
+    line-height: 1.4;
+    font-style: italic;
+    max-height: 60px;
+    overflow-y: auto;
+}
+
+.menu-accions { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.menu-btn {
+    padding: 0.5rem 0.8rem;
+    background: linear-gradient(135deg, #2e2008, #1c1405);
+    color: #e8c870;
+    border: 1px solid #5a3f18;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+.menu-btn:hover {
+    background: linear-gradient(135deg, #4a3210, #2e2008);
+    border-color: #d0a030;
+    color: #fff8e0;
+}
+.menu-btn-agafar { border-color: #27ae60; color: #5dde8a; }
+.menu-btn-agafar:hover { background: linear-gradient(135deg, #1a3a20, #0e2010); border-color: #5dde8a; }
+.menu-btn-usar { border-color: #3a6aae; color: #70a8e8; }
+.menu-btn-usar:hover { background: linear-gradient(135deg, #102040, #081428); border-color: #70a8e8; }
+.menu-btn-danger { border-color: #7a2020; color: #e07070; }
+.menu-btn-danger:hover { background: linear-gradient(135deg, #3a1010, #200808); border-color: #e07070; }
+
+/* ============================
+   BARRA D'INVENTARI
+   ============================ */
+
+.inventari-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 86px;
+    background: linear-gradient(180deg, #0e0a03, #1a1005);
+    border-top: 2px solid #3a2808;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 1.5rem;
+    z-index: 500;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.6);
+}
+
+.inventari-titol {
+    font-size: 0.85rem;
+    color: #a09060;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+.inventari-items {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    flex: 1;
+    padding: 4px 0;
+    align-items: center;
+}
+.inventari-items::-webkit-scrollbar { height: 4px; }
+.inventari-items::-webkit-scrollbar-track { background: #1a1209; }
+.inventari-items::-webkit-scrollbar-thumb { background: #6a4f20; border-radius: 2px; }
+
+.inventari-buit {
+    color: #3a2808;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.inv-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border: 1px solid #3a2808;
+    border-radius: 6px;
+    background: rgba(30, 20, 5, 0.6);
+    transition: all 0.15s ease;
+    min-width: 58px;
+    flex-shrink: 0;
+}
+.inv-item:hover {
+    border-color: #f0c040;
+    background: rgba(60, 40, 10, 0.8);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(240, 192, 64, 0.2);
+}
+.inv-img { width: 36px; height: 36px; object-fit: contain; }
+.inv-placeholder {
+    width: 36px; height: 36px;
+    background: radial-gradient(circle, #6a4f20, #3a2808);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: bold; color: #f0c040; text-transform: uppercase;
+}
+.inv-nom {
+    font-size: 0.65rem; color: #a09060; text-align: center;
+    max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ============================
+   POPUPS
+   ============================ */
+
+.popup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-box {
+    background: linear-gradient(160deg, #1e1508, #120c03);
+    border: 1px solid #6a4f20;
+    border-radius: 10px;
+    padding: 1.8rem 2rem;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+#popup-imatge {
+    max-width: 160px;
+    max-height: 160px;
+    object-fit: contain;
+    border: 1px solid #4a3510;
+    border-radius: 6px;
+}
+
+.popup-box p {
+    color: #e8d9b0;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.popup-btn {
+    padding: 0.6rem 1.8rem;
+    background: linear-gradient(135deg, #3a2a10, #251a08);
+    color: #f0c040;
+    border: 1px solid #6a4f20;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.popup-btn:hover {
+    background: linear-gradient(135deg, #5a3f1a, #3a2a10);
+    border-color: #f0c040;
+}
+.popup-btn-cancel {
+    background: linear-gradient(135deg, #1a1005, #120c03);
+    color: #7a6040;
+    border-color: #3a2808;
+    margin-top: 0.5rem;
+}
+.popup-btn-cancel:hover { color: #a09060; border-color: #6a4f20; }
+
+/* Popup Usar */
+.popup-usar {
+    max-width: 480px;
+    text-align: left;
+    align-items: stretch;
+}
+.popup-usar h3 {
+    color: #f0c040;
+    font-size: 1.1rem;
+    text-align: center;
+}
+.popup-usar-sub {
+    color: #a09060 !important;
+    font-size: 0.88rem !important;
+    font-style: italic;
+    text-align: center;
+}
+.usar-seccio {
+    font-size: 0.78rem;
+    color: #7a6040;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.6rem 0 0.3rem;
+    border-top: 1px solid #2a1c06;
+    margin-top: 0.3rem;
+}
+.usar-seccio:first-child { border-top: none; margin-top: 0; padding-top: 0.2rem; }
+
+.usar-opcio-btn {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.8rem;
+    background: linear-gradient(135deg, #2e2008, #1c1405);
+    color: #e8c870;
+    border: 1px solid #4a3518;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    margin-bottom: 0.3rem;
+    transition: all 0.15s;
+}
+.usar-opcio-btn:hover {
+    background: linear-gradient(135deg, #4a3210, #2e2008);
+    border-color: #d0a030;
+    color: #fff8e0;
+}
+
+#popup-usar-opcions {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+#popup-usar-opcions::-webkit-scrollbar { width: 5px; }
+#popup-usar-opcions::-webkit-scrollbar-track { background: #1a1209; }
+#popup-usar-opcions::-webkit-scrollbar-thumb { background: #6a4f20; border-radius: 3px; }
